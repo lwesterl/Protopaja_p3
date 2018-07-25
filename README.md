@@ -26,6 +26,7 @@ Contains Arduino codes from protopaja project
  - After receiving data from a slave, master sends acknowledgment to the slave
  - Master, final implementation, transmits data to a server 
  
+ ____
  
  - Slave sends data on constant intervals
  - Turns on the sensors and fan to update measurements
