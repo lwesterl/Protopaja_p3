@@ -3,23 +3,24 @@ Contains Arduino codes from protopaja project
 
 
 
--	-	-	Description	-	-	-
+##		Description	
 
 
-	Master
+
+####	Master
 	
  - Used to test radio communication
  - Final implementation of master (hub unit) uses same kind of radio code
 
  
-	Slave
+####	Slave
 	
  - Used for sensor modules
  - Combines code for radio, display, dust sensor, fan and multi sensor 
  
  
  
--	-	-	Operating principle	-	-	-
+##		Operating principle	
 
  - Master module gives id to slaves during the first connection of the slaves
  - After receiving data from a slave, master sends acknowledgment to the slave
@@ -33,7 +34,7 @@ Contains Arduino codes from protopaja project
  
  
  
--	-	-	Hardware requirements	-	-	-
+##		Hardware requirements	
 
  - Test version: Arduino Unos for both master and slaves
  
