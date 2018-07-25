@@ -12,6 +12,8 @@
 // I2C Screen
 //U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(/* reset=*/ U8X8_PIN_NONE); 
 U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8(/* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE); 
+ 
+
 
 //char display_messages [][17] = {"Connecting...","Connected","Connection Error", "Standby", " ID Error"};
 char display_messages [][8] = {"Conn...","Conn","Con Err", "Standby", "ID Err"};
@@ -425,8 +427,8 @@ void setup(void){
             
             u8x8.clear();
             u8x8.drawString(0,0,display_messages[3]);
-            u8x8.drawString(10,30,"ID:");
-            u8x8.drawString(30,30,id_array);
+            u8x8.drawString(0,2,"ID:");
+            u8x8.drawString(3,2,id_array);
             
             u8x8.refreshDisplay();    // only required for SSD1606/7 
             delay(10); //give time to update display
