@@ -65,7 +65,7 @@ char id_array[2];
 const uint8_t id_len = 2;
 const uint8_t ack_len = 7;
 unsigned long curr_time = 0;
-unsigned long interval = 7000; // 53s sleep time 
+unsigned long interval = 52000; // 52s sleep time 
 unsigned long dust_count = 0;
 unsigned long loop_time = 0;
 unsigned long loop_max = 3000; // waits master answer 3s
@@ -185,6 +185,8 @@ void setup(void){
   digitalWrite(multi_sensor_power_pin,HIGH); // turn this on to write to display
   // init radio
   radio.begin();
+  radio.setDataRate(RF24_250KBPS);
+  radio.setChannel(108); //2.508 GHz
 
   delay(100);
 
@@ -207,6 +209,11 @@ void setup(void){
   if (millis() > curr_time + interval || first_connection == true){
 
 
+    // Turn on dust sensor to stabilize the measurements
+    digitalWrite(dust_power_pin,HIGH); //dust sensor to normal operating mode
+    delay(5000); // give time for the dust sensor to wake up correctly
+   
+
     digitalWrite(multi_sensor_power_pin,HIGH); // sensor board to normal operating mode
     // sensor board also must be on when display is written to
     
@@ -216,7 +223,7 @@ void setup(void){
     u8x8.refreshDisplay();    // only required for SSD1606/7 
     
     
-    digitalWrite(dust_power_pin,HIGH); //dust sensor to normal operating mode
+    
     digitalWrite(fan_power_pin,HIGH); // fan to normal operating mode
     
     
@@ -263,8 +270,8 @@ void setup(void){
      }
 
     
-    // Start radio again and turn off the sensors
-    //digitalWrite(dust_power_pin,LOW);
+    // Start radio again and turn off the dust sensor and fan
+    digitalWrite(dust_power_pin,LOW);
     digitalWrite(fan_power_pin,LOW);
     //digitalWrite(multi_sensor_power_pin,LOW); 
     power_on = true;

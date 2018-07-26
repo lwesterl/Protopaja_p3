@@ -43,6 +43,8 @@ short slaves = 2; //tells first free id, start value 2
 void setup(void){
  Serial.begin(9600); //debugging only
  radio.begin();
+ radio.setDataRate(RF24_250KBPS);
+ radio.setChannel(108); //2.508 GHz
  radio.openReadingPipe (1,addresses[0]); //master address
  
  delay(100);
