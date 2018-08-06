@@ -6,7 +6,7 @@
 /* Master should be turned on first
  *  Then turn slaves on one by one
  *  During the first connection slaves receive an id from the master 
- *  Code supports at the moment one master + 5 slaves
+ *  Code supports at the moment one master + 7 slaves
  */
 
 
@@ -29,15 +29,15 @@ bool request = false;
 
 RF24 radio(9,10); //ce pin, csn pin
 
-//multicommunication addresses
-char id_list[][7] = {"device","sensor","projec","common","argume","return"};
-//uint8_t address[][7] = {"Master","Slaves"};
+// these are used as ack to double check correct slave send data, must match slaves',
+// any standard length strings could be used
+char id_list[][7] = {"device","sensor","projec","common","argume","return","monito"};
 
 //mutiple pipes use in communication, the first pipe reserved for first contacts by slaves
-uint8_t addresses[][6] = {"Node1","Node2","Node3","Node4","Node5","Node6","Node7"};
+uint8_t addresses[][6] = {"Node1","Node2","Node3","Node4","Node5","Node6","Node7","Node8","Node9"};
 
 
-short slaves = 2; //tells first free id, start value 2
+short slaves = 1; //tells first free id, start value 1
 
 
 void setup(void){
@@ -102,14 +102,7 @@ void setup(void){
             problem = true;
             Serial.println("Error connecting to a new slave");
             break;
-          }
-          
-          radio.stopListening();
-          //radio.write(id_array,id_len);
-          // expect the slave to answer
-          radio.startListening();
-          delay(100); // wait for an answer
-          
+          }         
         }
 
         if (!problem)
@@ -131,15 +124,17 @@ void setup(void){
       else{
 
         // a slave sent information
-        // Serial.println(data[0]);
         // inform slave that the message was succesfully received
-        radio.openWritingPipe(addresses[(data[0]-'0')]); // slaves' address
+        radio.openWritingPipe(addresses[(data[0]-'0'+1)]); // slaves' address,
+        // 1st reserved for master and 2nd for the first connections. slaves' ids start from 1
+        
         Serial.println(id_list[data[0]-'1']);
        // Serial.println((int)data[0]);
         for (int i = 0; i<3;i++){
           radio.write(id_list[data[0]-'1'], ack_len); // write standard ack which matches slave id
           radio.flush_rx();
           radio.flush_tx();
+          // writing ack 3 times seems to help slave to get the ack
 
           
 
