@@ -51,7 +51,7 @@ unsigned char buf[LENG];
  */
 
 RF24 radio(7,6);//(CE pin) on the RF module, Chip Select (SCN pin)
-bool check_connection(U8X8_SSD1306_128X32_UNIVISION_HW_I2C &u8x8,unsigned long loop_time, unsigned long loop_max);
+bool check_connection(U8X8_SSD1306_128X32_UNIVISION_HW_I2C &u8x8,unsigned long loop_time, unsigned long loop_max, char message[]);
 char data[16];// this is used to send data to master
 
 char id_array[2];
@@ -270,7 +270,7 @@ void setup(void){
               break;        
            }
         }*/
-        problem = check_connection(u8x8,loop_time,loop_max);
+        problem = check_connection(u8x8,loop_time,loop_max,display_messages[2]);
         
         if ( not problem){
          
@@ -337,7 +337,7 @@ void setup(void){
           }
         }*/
 
-        problem = check_connection(u8x8,loop_time,loop_max);
+        problem = check_connection(u8x8,loop_time,loop_max, display_messages[2]);
     
         if(not problem){
           // read master ack
@@ -375,7 +375,7 @@ void setup(void){
     
  // FUNCTIONS
 
-bool check_connection(U8X8_SSD1306_128X32_UNIVISION_HW_I2C &u8x8,unsigned long loop_time, unsigned long loop_max){
+bool check_connection(U8X8_SSD1306_128X32_UNIVISION_HW_I2C &u8x8,unsigned long loop_time, unsigned long loop_max, char message[]){
   while(!radio.available()){
 
     if (millis() > (loop_time + loop_max)){
@@ -385,7 +385,7 @@ bool check_connection(U8X8_SSD1306_128X32_UNIVISION_HW_I2C &u8x8,unsigned long l
            
       // update display to inform connection problem
       u8x8.clear();
-      u8x8.drawString(0,0,display_messages[2]);
+      u8x8.drawString(0,0,message);
       u8x8.refreshDisplay(); 
       return true;
     }
