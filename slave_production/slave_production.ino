@@ -10,6 +10,12 @@
  * At the moment code supports one master + 7 slaves
  */
 
+// DUST SENSOR TRANSMIT VALUE INFO:
+// 0 - 25 : good
+// 26 - 50 : bad
+// 50 - 85 : really bad
+// 86 - 98 : dangerous
+// 99 : dust sensor overflow error
 
 
 // INCLUDES
@@ -141,9 +147,7 @@ void manual_data_buffer(char *data, short id, int dust, struct Sensor sensor, in
 
 
 void setup(void){
-  Serial.begin(9600); //debugging only
-
-  
+   
   // Serial for dust sensor
   PMSerial.begin(9600);   
   PMSerial.setTimeout(1500);
@@ -205,8 +209,7 @@ void setup(void){
         
     while(dust_count + 7000 > millis()){
       // give 7s measurement time for dust sensor and sensor board
-      Serial.println(F("Measuring dust"));
-      
+           
        // update dust sensor values
       if(PMSerial.find(0x42)){    
         PMSerial.readBytes(buf,LENG);
@@ -214,23 +217,17 @@ void setup(void){
     
         if(buf[0] == 0x4d){
           if(checkValue(buf,LENG)){
-            // for now we just send one value to master, all particles scaled and mean taken
-            //PM0_3Value = transmitPM0_3(buf);
+            // for now we just send one value to master, all > 1 um particles scaled and mean taken
+            
             PM1_0Value = transmitPM1_0(buf);
-            int P_con = concentration(buf);
+            P_tot += PM1_0Value;
             n++;
             /*Serial.println(PM0_3Value);
             PM0_5Value = transmitPM0_5(buf);
             PM1_0Value = transmitPM1_0(buf);
             PM2_5Value = transmitPM2_5(buf);
             PM5_0Value = transmitPM5_0(buf);
-            PM10Value = transmitPM10(buf);*/
-            //P_tot += P_con;
-            P_tot += PM1_0Value;
-            //Serial.println(P_con);
-            //Serial.println(P_tot);
-            Serial.println(PM1_0Value);
-                        
+            PM10Value = transmitPM10(buf);*/                        
           }  
         }
       }
@@ -239,10 +236,9 @@ void setup(void){
       
      }
 
-     // take mean from dust measurenments
+     // take mean from dust measurenments and scale to send as two digits
      P_tot = P_tot /(2*n);
-     Serial.println(P_tot);
-
+     
     // Start radio again and turn off the dust sensor and fan
     digitalWrite(dust_power_pin,LOW);
     digitalWrite(fan_power_pin,LOW);
@@ -265,36 +261,21 @@ void setup(void){
         radio.startListening();
         loop_time = millis();
         
-        problem = false; // tells if there is a connection problem to master
-       
-        /*while (! radio.available()){
-          if (loop_time + loop_max < millis()){
-              problem = true;
-              Serial.println(F("Error connecting to the master"));
-              
-              //update display to inform user that there is a connection problem
-              u8x8.clear();
-              u8x8.drawString(0,0,display_messages[2]);
-              u8x8.refreshDisplay();   
-              break;        
-           }
-        }*/
+        problem = false; // init value, tells if there is a connection problem to master
         problem = check_connection(u8x8,loop_time,loop_max,display_messages[2]);
         
         if ( not problem){
          
           radio.read(id_array,id_len);
           delay(5);
-          Serial.println(id_array);
-
+          
           id = id_array[0] - '0'; // get the id as an integer
           // check id is ok
           if (id > 7 || id < 1)
           {
             // id error
              problem = true;
-             Serial.println(F("ID Error, Noisy signal"));
-              
+                           
              //update display to inform id error to user
              u8x8.clear();
              u8x8.drawString(0,0,display_messages[4]);
@@ -321,8 +302,7 @@ void setup(void){
         radio.openWritingPipe(addresses[0]);
         radio.stopListening();
         radio.write(data,len); // send data to the master
-        Serial.println(data);
-
+       
         radio.flush_rx();
         radio.flush_tx();
         radio.startListening(); // listen the master
@@ -330,22 +310,6 @@ void setup(void){
         loop_time = millis();
  
         problem = false;
-        /*while(!radio.available()){
-
-          if (millis() > (loop_time + loop_max)){
-            // break the loop and report a problem
-        
-            Serial.println(F("Connection problem to the master"));
-            problem = true;
-            
-            // update display to inform connection problem
-            u8x8.clear();
-            u8x8.drawString(0,0,display_messages[2]);
-            u8x8.refreshDisplay(); 
-            break;
-          }
-        }*/
-
         problem = check_connection(u8x8,loop_time,loop_max, display_messages[2]);
     
         if(not problem){
@@ -353,8 +317,7 @@ void setup(void){
           char ack[7];
     
           radio.read(ack, ack_len);
-          Serial.println(ack); // debug use only
-
+          
           if(strcmp(ack,id_list[id-1])== 0){
             // if strings are identical -> got correct ack
             // master got the message 
@@ -389,9 +352,7 @@ bool check_connection(U8X8_SSD1306_128X32_UNIVISION_HW_I2C &u8x8,unsigned long l
 
     if (millis() > (loop_time + loop_max)){
       // return true, stands for connection problem
-  
-      Serial.println(F("Connection problem to the master"));
-           
+             
       // update display to inform connection problem
       u8x8.clear();
       u8x8.drawString(0,0,message);
@@ -635,17 +596,9 @@ struct Sensor sensor_board(struct Sensor sensor,char slave_addr){
     Wire.requestFrom((uint8_t)slave_addr,(uint8_t)6,(uint8_t)true); //6 bytes: temp, humd, light
 
     sensor.temp = read_temp();
-    Serial.print("TEMP  ");
-    Serial.println(sensor.temp);
-
     sensor.humd = read_humd();
-    Serial.print("HUMIDITY  ");
-    Serial.println(sensor.humd);
-
     sensor.light = read_light()/100; //scale properly [0-9]
-    Serial.print("LIGHT  ");
-    Serial.println(sensor.light);
- 
+     
     Wire.endTransmission();
 
     return sensor;
