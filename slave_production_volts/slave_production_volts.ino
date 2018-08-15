@@ -1,4 +1,6 @@
 /* 
+ *  PRODUCTION VERSION, NO DEBUG PRINTS
+ *  
  * Master must be turned on first 
  * Then turn slaves on, one by one
  * Master gives unique ids to slaves during the first connection
@@ -8,14 +10,15 @@
  * The second is the real sensor value transmission
  * 
  * At the moment code supports one master + 7 slaves
+ * This code does not optimize power usage because it caused problems with the dust sensor
  */
 
 // DUST SENSOR TRANSMIT VALUE INFO:
-// 0 - 25 : good
-// 26 - 50 : quite bad
-// 50 - 85 : really bad
-// 86 - 98 : dangerous
-// 99 : dust sensor overflow error
+// 0 - 4 : good
+// 5 - 20 : quite bad
+// 20 - 70 : really bad
+// 70 - 98 : dangerous
+// 99 : dust sensor overflow error, probably too many particles
 
 
 // INCLUDES
@@ -28,7 +31,7 @@
 // i2c disp
 #include <Arduino.h>
 #include <U8x8lib.h>
-U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8(/* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE); // constructor for the disp
+U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8(/* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE); // constructor for the display
 
  
 // BASIC VARIABLES, defines
@@ -40,7 +43,8 @@ unsigned char buf[LENG];
 
 #define dust_power_pin 14 // this is used to control dust sensor power
 #define fan_power_pin 9 // this is used to control fan power
-#define multi_sensor_power_pin 10 //this is used to control multisensor power 
+#define multi_sensor_power_pin 10 //this is used to control multisensor power
+ 
 // Notice: multi_sensor_power_pin needs to be on HIGH state when display is written to
 
 
@@ -64,8 +68,7 @@ char id_array[2];
 const uint8_t id_len = 2;
 const uint8_t ack_len = 7;
 unsigned long curr_time = 0;
-unsigned long interval = 52000; // 52s sleep time 
-unsigned long dust_count = 0;
+unsigned long interval = 60000; // 60s 'sleep time' 
 unsigned long loop_time = 0;
 unsigned long loop_max = 3000; // waits master answer 3s
 // Notice: interval and loop_max are chosen by trial and error
@@ -130,8 +133,6 @@ struct Sensor{
   int light = 0;
 }sensor;
 
-int base = 10;
-
 
 // functions for sensor board
 
@@ -142,25 +143,25 @@ int read_light(void);
 struct Sensor sensor_board(struct Sensor sensor,char slave_addr);
 void manual_data_buffer(char *data, short id, int dust, struct Sensor sensor, int volts);
 
-// Battery voltage measurement, voltage transmitted as int (causes inaccuracy)
+
+// Battery voltage measurement, voltage transmitted as int (causes  a bit inaccuracy)
 #define volt_pin A1
 int rawvolts = 0;
 int volts = 0;
 
 
-
 void setup(void){
-   
+  
   // Serial for dust sensor
   PMSerial.begin(9600);   
   PMSerial.setTimeout(1500);
   pinMode(dust_power_pin,OUTPUT); // dust sensor  power pin
-  
   pinMode(volt_pin, INPUT); // battery voltage adc pin
-  pinMode(fan_power_pin,OUTPUT); // fan board power pin
+  pinMode(fan_power_pin,OUTPUT); // fan power pin
   pinMode(multi_sensor_power_pin,OUTPUT); // sensor board power pin
   digitalWrite(multi_sensor_power_pin,HIGH); // turn this on to write to display
-  
+  digitalWrite(dust_power_pin,HIGH); //dust sensor to normal operating mode
+
   // init radio
   radio.begin();
   radio.setDataRate(RF24_250KBPS); // smaller trasnmit rate to better range
@@ -176,50 +177,21 @@ void setup(void){
   u8x8.drawString(0,0,display_messages[0]);
   
   u8x8.refreshDisplay(); 
- }
 
-
-
-
- void loop(void){
- 
-
-  if (millis() > curr_time + interval || first_connection == true){
-
-
-    // Turn on dust sensor to stabilize the measurements
-    digitalWrite(dust_power_pin,HIGH); //dust sensor to normal operating mode
-    digitalWrite(multi_sensor_power_pin,HIGH); // sensor board to normal operating mode
-    delay(10000); // give time for the dust sensor to wake up correctly
-     
-    // sensor board also must be on when display is written to
-    
-    // update display
-    u8x8.clear();
-    u8x8.drawString(0,0,display_messages[0]);
-    u8x8.refreshDisplay(); 
-    
-    digitalWrite(fan_power_pin,HIGH); // fan to normal operating mode
-
-    // init values
-    n = 0;
-    P_tot = 0;
-    dust_count = millis();
+  // The first measurements
+  unsigned long dust_count = millis();
         
-    while(dust_count + 7000 > millis()){
-      // give 7s measurement time for dust sensor and sensor board
-          
-       // update dust sensor values
+  while(dust_count + 7000 > millis()){
+      // give 7s measurement time for dust sensor and sensor board to get ok values
       if(PMSerial.find(0x42)){    
         PMSerial.readBytes(buf,LENG);
     
     
         if(buf[0] == 0x4d){
           if(checkValue(buf,LENG)){
-            // for now we just send one value to master, all > 1 um particles scaled and mean taken
+            // just send one value to master, all > 1 um particles scaled and mean taken
             
-            PM1_0Value = transmitPM1_0(buf);
-            P_tot += PM1_0Value;
+            PM1_0Value += transmitPM1_0(buf) / 10;
             n++;
                          
           }  
@@ -229,18 +201,32 @@ void setup(void){
      sensor = sensor_board(sensor, slave_addr);
       
      }
+ }
+
+
+
+
+ void loop(void){
+ 
+
+  if (millis() > curr_time + interval || first_connection == true){
     
-     // take mean from dust measurenments and scale to send as two digits
-     P_tot = P_tot /(2*n);
+    // update display
+    u8x8.clear();
+    u8x8.drawString(0,0,display_messages[0]);
+    u8x8.refreshDisplay(); 
 
-     // measure battery voltage, vcc a bit above 5V
-     rawvolts = analogRead(volt_pin);
-     volts = (int)((rawvolts * 5.0) / 102.40);
+    // measure battery voltage, vcc a bit above 5V
+    rawvolts = analogRead(volt_pin);
+    volts = (int)((rawvolts * 5.0) / 102.40);
 
-     
-    // Start radio again and turn off the dust sensor and fan
-    digitalWrite(dust_power_pin,LOW);
-    digitalWrite(fan_power_pin,LOW);
+    // init values
+    P_tot = 0;
+    P_tot = PM1_0Value / n; // take mean
+    n = 0;
+    PM1_0Value = 0;
+         
+    // Start radio again
      
     power_on = true;
     
@@ -265,7 +251,7 @@ void setup(void){
         problem = check_connection(u8x8,loop_time,loop_max,display_messages[2]);
         
    
-        if ( not problem){
+        if (not problem){
          
           radio.read(id_array,id_len);
           delay(5);
@@ -292,7 +278,7 @@ void setup(void){
       }
       
       // id problem means that slave hasn't gotten valid id from master during the first connection
-      if ( not id_problem){
+      if (not id_problem){
         // send sensor data to the master
       
         // create data buffer
@@ -322,11 +308,10 @@ void setup(void){
           if(strcmp(ack,id_list[id-1])== 0){
             // if strings are identical -> got correct ack
             // master got the message 
-            //set radio and dust sensor to sleep mode
+            // set radio to sleep mode
             radio.powerDown(); // reduce power usage
             power_on = false;
-            curr_time = millis();
-            
+                        
             // update display to inform activating standby mode
             u8x8.clear();
             u8x8.drawString(0,0,display_messages[3]);
@@ -335,15 +320,34 @@ void setup(void){
             
             u8x8.refreshDisplay();
             delay(10); //give time to update display
-            digitalWrite(multi_sensor_power_pin,LOW); 
+            digitalWrite(fan_power_pin,HIGH); // fan to normal operating mode
+
+            curr_time = millis(); // update time
             }
         }
       }
     }
  
   }
+  //  Measure dust and update multi sensor values
+  if(PMSerial.find(0x42)){    
+      PMSerial.readBytes(buf,LENG);
+  
+      if(buf[0] == 0x4d){
+        if(checkValue(buf,LENG)){
+             
+          PM1_0Value += transmitPM1_0(buf) / 10; // this just scales the measurement
+          n++;
+        }           
+      }
+      sensor = sensor_board(sensor, slave_addr);  
+  }
 
- }
+  if (millis() > curr_time + 5000){
+    // run fan for 5s to create 'fresh' airflow when the measuring starts
+    digitalWrite(fan_power_pin,LOW); // fan off, doesn't affect when fan already off
+  }
+}
 
     
  // FUNCTIONS
@@ -389,46 +393,42 @@ void manual_data_buffer(char *data, short id, int dust, struct Sensor sensor, in
    * ASSUMPTIONS
    *  id 0-9 (1 digit)
    *  dust 0-99 ( 2 digits)
-   *  sensor.temp 0-99 (2 digits)
-   *  sensor.humd 0-99 (2 digits)
-   *  sensor.light 0-9 (1 digit)
-   *  volts 0-99, should be 0-42 (1 cell lipo)
+   *  sensor.temp 0-99 ( 2 digits)
+   *  sensor.humd 0-99 ( 2 digits)
+   *  sensor.light 0-9 ( 1 digit)
    *  
    *  base = 10, normal DEC
    *  values separated with ;
    */
-   int base = 10;
-
-    // init data buffer
-    for (int k=0; k<15;k++)data[k] = 0; //NULL
-    data[15] = '\0';
-
-    //  check values to avoid overflow, id check should be elsewhere
-    if (sensor.light > 9)sensor.light = 9; 
-    if (dust < 0 || dust > 99) dust = 99; 
-    if (sensor.humd < 0) sensor.humd = 0;
-    if (volts < 0) volts = 0; // this shouldn't be possible in normal conditions
-    
-
-    // Manually generate data string
+  int base = 10;
   
-    data[0] = (char) id + '0';
-    data[1] = ';';
-    data[2] = (char)(dust / base) + '0';
-    data[3] = (char) (dust % base) + '0';
-    data[4] = ';';
-    data[5] = (char)(sensor.temp / base) + '0';
-    data[6] = (char) (sensor.temp % base) + '0';
-    data[7] = ';';
-    data[8] = (char)(sensor.humd / base) + '0';
-    data[9] = (char)(sensor.humd % base) + '0';
-    data[10] = ';';
-    data[11] = (char)sensor.light +'0';
-    data[12] = ';';
-    data[13] = (char)(volts / base) + '0';
-    data[14] = (char)(volts % base) + '0';
-      
-   
+  // init data buffer
+  for (int k=0; k<15;k++)data[k] = 0; //NULL
+  data[15] = '\0';
+
+  //  check values to avoid overflow, id check should be elsewhere
+  if (sensor.light > 9)sensor.light = 9; 
+  if (dust < 0 || dust > 99) dust = 99; 
+  if (sensor.humd < 0) sensor.humd = 0;
+  if (volts < 0) volts = 0; // this shouldn't be possible in normal conditions
+
+  // Manually generate data string
+
+  data[0] = (char) id + '0';
+  data[1] = ';';
+  data[2] = (char)(dust / base) + '0';
+  data[3] = (char) (dust % base) + '0';
+  data[4] = ';';
+  data[5] = (char)(sensor.temp / base) + '0';
+  data[6] = (char) (sensor.temp % base) + '0';
+  data[7] = ';';
+  data[8] = (char)(sensor.humd / base) + '0';
+  data[9] = (char)(sensor.humd % base) + '0';
+  data[10] = ';';
+  data[11] = (char)sensor.light +'0';
+  data[12] = ';';
+  data[13] = (char)(volts / base) + '0';
+  data[14] = (char)(volts % base) + '0';
   
  }
 

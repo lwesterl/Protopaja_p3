@@ -143,17 +143,16 @@ void manual_data_buffer(char *data, short id, int dust, struct Sensor sensor, in
 void setup(void){
   Serial.begin(9600); //debugging only
 
-  
   // Serial for dust sensor
   PMSerial.begin(9600);   
   PMSerial.setTimeout(1500);
   pinMode(dust_power_pin,OUTPUT); // dust sensor  power pin
 
-  
-  pinMode(fan_power_pin,OUTPUT); // fan board power pin
+  pinMode(fan_power_pin,OUTPUT); // fan power pin
   pinMode(multi_sensor_power_pin,OUTPUT); // sensor board power pin
   digitalWrite(multi_sensor_power_pin,HIGH); // turn this on to write to display
-  
+  digitalWrite(dust_power_pin,HIGH); //dust sensor to normal operating mode
+
   // init radio
   radio.begin();
   radio.setDataRate(RF24_250KBPS); // smaller trasnmit rate to better range
@@ -169,6 +168,30 @@ void setup(void){
   u8x8.drawString(0,0,display_messages[0]);
   
   u8x8.refreshDisplay(); 
+
+  // The first measurements
+  unsigned long dust_count = millis();
+        
+  while(dust_count + 7000 > millis()){
+      // give 7s measurement time for dust sensor and sensor board to get ok values
+      if(PMSerial.find(0x42)){    
+        PMSerial.readBytes(buf,LENG);
+    
+    
+        if(buf[0] == 0x4d){
+          if(checkValue(buf,LENG)){
+            // just send one value to master, all > 1 um particles scaled and mean taken
+            
+            PM1_0Value += transmitPM1_0(buf) / 10;
+            n++;
+                         
+          }  
+        }
+      }
+      // update sensor board, sensor struct, this has to be done multiple times to get correct measurements
+     sensor = sensor_board(sensor, slave_addr);
+      
+     } 
  }
 
 
@@ -178,16 +201,6 @@ void setup(void){
  
 
   if (millis() > curr_time + interval || first_connection == true){
-
-
-    // Turn on dust sensor to stabilize the measurements
-    digitalWrite(dust_power_pin,HIGH); //dust sensor to normal operating mode
-    digitalWrite(multi_sensor_power_pin,HIGH); // sensor board to normal operating mode
-    delay(10000); // give time for the dust sensor to wake up correctly
-   
-
-   
-    // sensor board also must be on when display is written to
     
     // update display
     u8x8.clear();
@@ -195,57 +208,17 @@ void setup(void){
     u8x8.refreshDisplay(); 
     
     
-    
-    digitalWrite(fan_power_pin,HIGH); // fan to normal operating mode
 
-    // init global values
-    n = 0;
+    // init values
     P_tot = 0;
-    dust_count = millis();
-        
-    while(dust_count + 7000 > millis()){
-      // give 7s measurement time for dust sensor and sensor board
-      Serial.println(F("Measuring dust"));
-      
-       // update dust sensor values
-      if(PMSerial.find(0x42)){    
-        PMSerial.readBytes(buf,LENG);
-    
-    
-        if(buf[0] == 0x4d){
-          if(checkValue(buf,LENG)){
-            // for now we just send one value to master, all particles scaled and mean taken
-            //PM0_3Value = transmitPM0_3(buf);
-            PM1_0Value = transmitPM1_0(buf);
-            int P_con = concentration(buf);
-            n++;
-            /*Serial.println(PM0_3Value);
-            PM0_5Value = transmitPM0_5(buf);
-            PM1_0Value = transmitPM1_0(buf);
-            PM2_5Value = transmitPM2_5(buf);
-            PM5_0Value = transmitPM5_0(buf);
-            PM10Value = transmitPM10(buf);*/
-            //P_tot += P_con;
-            P_tot += PM1_0Value;
-            //Serial.println(P_con);
-            //Serial.println(P_tot);
-            Serial.println(PM1_0Value);
-                        
-          }  
-        }
-      }
-      // update sensor board, sensor struct, this has to be done multiple times to get correct measurements
-     sensor = sensor_board(sensor, slave_addr);
-      
-     }
+    P_tot = PM1_0Value / n; // take mean
+    n = 0;
+    PM1_0Value = 0;;
+    Serial.print("Dust: ");
+    Serial.println(P_tot);
+         
 
-     // take mean from dust measurenments
-     P_tot = P_tot /(2*n);
-     Serial.println(P_tot);
-
-    // Start radio again and turn off the dust sensor and fan
-    digitalWrite(dust_power_pin,LOW);
-    digitalWrite(fan_power_pin,LOW);
+    // Start radio again 
      
     power_on = true;
     
@@ -358,11 +331,10 @@ void setup(void){
           if(strcmp(ack,id_list[id-1])== 0){
             // if strings are identical -> got correct ack
             // master got the message 
-            //set radio and dust sensor to sleep mode
+            //set radio to sleep mode
             radio.powerDown(); // reduce power usage
             power_on = false;
-            curr_time = millis();
-            
+                        
             // update display to inform activating standby mode
             u8x8.clear();
             u8x8.drawString(0,0,display_messages[3]);
@@ -371,15 +343,37 @@ void setup(void){
             
             u8x8.refreshDisplay();
             delay(10); //give time to update display
-            digitalWrite(multi_sensor_power_pin,LOW); 
+            digitalWrite(fan_power_pin,HIGH); // fan to normal operating mode
+            
+            curr_time = millis(); 
             }
         }
       }
     }
  
   }
+   if(PMSerial.find(0x42)){    
+    PMSerial.readBytes(buf,LENG);
 
+    if(buf[0] == 0x4d){
+      if(checkValue(buf,LENG)){
+        int prev = PM1_0Value;   
+        PM1_0Value += transmitPM1_0(buf) / 10;
+        Serial.print("New dust particles value: ");
+        Serial.println(PM1_0Value); 
+        Serial.print("Increment: ");
+        Serial.println(PM1_0Value - prev);
+        n++;
+      }           
+    }
+    sensor = sensor_board(sensor, slave_addr);  
  }
+ if (millis() > curr_time + 5000){
+    // run fan for 5s to create 'fresh' airflow when the measuring starts
+    digitalWrite(fan_power_pin,LOW); // fan off, doesn't affect when fan already off
+ }
+
+}
 
     
  // FUNCTIONS
