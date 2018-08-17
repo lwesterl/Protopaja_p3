@@ -145,7 +145,7 @@ void manual_data_buffer(char *data, short id, int dust, struct Sensor sensor, in
 
 
 // Battery voltage measurement, voltage transmitted as int (causes  a bit inaccuracy)
-#define volt_pin A1
+#define volt_pin A0
 int rawvolts = 0;
 int volts = 0;
 
