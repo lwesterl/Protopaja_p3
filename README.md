@@ -1,5 +1,6 @@
 # Protopaja_p3
-Contains Arduino codes from protopaja project
+Contains Arduino codes from protopaja project, group 3
+The project was sponsored by Consair
 
 
 
@@ -16,8 +17,19 @@ Contains Arduino codes from protopaja project
 ####	Slave
 	
  - Used for sensor modules
- - Combines code for radio, display, dust sensor, fan and multi sensor 
+ - Combines code for radio, display, dust sensor, fan and multi sensor
+ - Debug code, includes serial prints etc.
+ - Intended to run on Arduino Uno 
  
+####	Slave production & production volts
+
+ - Final 'production' codes which are run on own pcb(Atmega328p mcu)
+ - Production volts has the same base code but it also includes battery voltage measurement
+
+####	Old files
+ - Contains old slave, slave production and slave production volts codes
+ - Those codes were tested to reduce current consumption of the slaves
+ - However, dust sensor didn't work reliably enough with those codes
  
  
 ##		Operating principle	
