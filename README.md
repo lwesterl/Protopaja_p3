@@ -22,9 +22,13 @@ The project was sponsored by Consair
  - Debug code, includes serial prints etc.
  - Intended to run on Arduino Uno 
  
-####	Slave production & production volts
+####	Slave production
 
- - Final 'production' codes which are run on own pcb(Atmega328p mcu)
+ - The final 'production' code which is run on own pcb(Atmega328p mcu)version 1
+ 
+#### 	Slave production v2 & Slave production volts v2
+
+ - The final codes that are run on own pcb version 2, which has a bit different pin layout to version 1
  - Production volts has the same base code but it also includes battery voltage measurement
 
 ####	Old files
