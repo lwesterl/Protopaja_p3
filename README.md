@@ -13,6 +13,11 @@ The project was sponsored by Consair
 	
  - Used to test radio communication
  - Final implementation of master (hub unit) uses same kind of radio code
+ 
+#### Master koodit 
+
+ - NodeMcu codes 
+ - Master unit codes (used in production master unit, code 3 is the most important)
 
  
 ####	Slave
