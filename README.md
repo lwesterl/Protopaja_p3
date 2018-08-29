@@ -3,7 +3,9 @@ Contains Arduino codes from protopaja project, group 3
 <br/>
 The project was sponsored by Consair
 
-
+<br/><br/>
+These codes are intended to use with a server running contents of: <br/>
+https://github.com/vikketii/protopaja-web
 
 ##		Content description
 
@@ -20,9 +22,9 @@ The project was sponsored by Consair
  - Master unit codes (used in 'production' master unit)
  - Code 3 is the final implementation
  
- <b>NOTICE<b><br/>
+ <b>NOTICE:</b><br/>
  Server domain needs to match your own server</br>
- Change this line: http.begin("http://vikke.me/send_string/");
+ Change the line which contains http.begin()
 
  
 ####	Slave
