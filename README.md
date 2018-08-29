@@ -1,7 +1,7 @@
 # Protopaja_p3
 Contains Arduino codes from protopaja project, group 3
 <br/>
-The project was sponsored by Consair
+The project was sponsored by <a href="https://www.consair.fi/">Consair</a>
 
 <br/><br/>
 These codes are intended to use with a server running contents of: <br/>
