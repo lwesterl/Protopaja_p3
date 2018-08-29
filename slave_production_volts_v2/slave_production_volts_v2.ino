@@ -219,7 +219,7 @@ void setup(void){
 
     // measure battery voltage, vcc a bit above 5V
     rawvolts = analogRead(volt_pin);
-    volts = (int)((rawvolts * 5.0) / 102.40);
+    volts = (int)((rawvolts * 5.6) / 102.40);
 
     // init values
     P_tot = 0;
