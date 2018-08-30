@@ -66,7 +66,12 @@ https://github.com/vikketii/protopaja-web
  - Then turns on the radio module and transmits data to the hub
  - After receiving an acknowledgment continues to measure dust particles
  
- 
+## 		External software requirements 
+
+<a href="https://github.com/nRF24/RF24"> RF24 for radiomodules</a>
+<br/> <a href="https://github.com/olikraus/u8g2"> U8X8 for oled display </a>
+<br/><br/><a href="https://github.com/tzapu/WiFiManager"> WiFiManager for master</a>
+<br/> Master also needs ESP8266 libraries
  
 ##		Hardware requirements	
 
